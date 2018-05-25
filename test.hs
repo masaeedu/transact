@@ -13,11 +13,36 @@ import           Data.Maybe                (fromJust)
 import           Data.Monoid
 import           System.Directory
 
+-- Data structure
 data SituationGraph c e k x = SG
   { situations  :: Map k (e (Maybe x))
   , transitions :: Map k [(c k, (c x) -> e x)]
   }
 
+-- Interpreter
+lkp k = fromJust . M.lookup k
+logW x = tell [x]
+run avoid sg k = do
+  m <- lift sitch
+  logW $ "Trying to get to " <> show k
+  maybe travel arrive m
+  where
+    sitch = lkp k (situations sg)
+    routes = lkp k (transitions sg)
+    arrive v = do
+      logW "Already there"
+      pure $ Just v
+    travel = do
+      logW "Not there; trying to reach dependencies..."
+      runMaybeT .
+        asum .
+        (fmap attemptRoute) .
+        (filter $ \(deps, _) -> (== 0) . length $ intersect avoid deps) $
+        routes
+    attemptRoute (deps, e) =
+      (lift . lift) . e =<< (traverse (MaybeT . run (avoid <> [k]) sg) deps)
+
+-- Example
 isDirEmpty = ((fmap $ (== 0) . length) . listDirectory)
 
 exampleSituations =
@@ -53,27 +78,3 @@ exampleTransitions =
     ]
 
 exampleSG = SG exampleSituations exampleTransitions
-
-lkp k = fromJust . M.lookup k
-
-logW x = tell [x]
-
-run avoid sg k = do
-  m <- lift sitch
-  logW $ "Trying to get to " <> show k
-  maybe travel arrive m
-  where
-    sitch = lkp k (situations sg)
-    routes = lkp k (transitions sg)
-    arrive v = do
-      logW "Already there"
-      pure $ Just v
-    travel = do
-      logW "Not there; trying to reach dependencies..."
-      runMaybeT .
-        asum .
-        (fmap attemptRoute) .
-        (filter $ \(deps, _) -> (== 0) . length $ intersect avoid deps) $
-        routes
-    attemptRoute (deps, e) =
-      (lift . lift) . e =<< (traverse (MaybeT . run (avoid <> [k]) sg) deps)
