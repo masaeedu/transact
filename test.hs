@@ -47,14 +47,14 @@ isDirEmpty = ((fmap $ (== 0) . length) . listDirectory)
 
 exampleSituations =
   M.fromList
-    [ ("clean", (guard . not) <$> doesDirectoryExist "/tmp/foo")
+    [ ( "clean", (guard . not) <$> doesDirectoryExist "/tmp/foo")
     , ( "foo"
       , (fmap guard) $
         liftA2
           (\f -> \b -> f && (not b))
           (doesDirectoryExist "/tmp/foo")
           (doesDirectoryExist "/tmp/foo/bar"))
-    , ("bar", guard <$> doesDirectoryExist "/tmp/foo/bar")
+    , ( "bar", guard <$> doesDirectoryExist "/tmp/foo/bar")
     ]
 
 exampleTransitions =
